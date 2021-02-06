@@ -1,5 +1,10 @@
 package com.raywenderlich
 
+import com.raywenderlich.auth.JwtService
+import com.raywenderlich.auth.MySession
+import com.raywenderlich.auth.hash
+import com.raywenderlich.repository.DataBaseFactory
+import com.raywenderlich.repository.TodoRepository
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.request.*
@@ -8,6 +13,7 @@ import io.ktor.http.*
 import io.ktor.locations.*
 import io.ktor.sessions.*
 import io.ktor.auth.*
+import io.ktor.auth.jwt.*
 import io.ktor.gson.*
 import io.ktor.features.*
 
@@ -25,7 +31,24 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
+    DataBaseFactory.init()
+    val db = TodoRepository()
+
+    val jwtService = JwtService()
+    val hashFunction = { s: String -> hash(s) }
+
     install(Authentication) {
+        jwt("jwt") {
+            verifier(jwtService.verifier)
+            realm = "Todo Service"
+            validate {
+                val payload = it.payload
+                val claim = payload.getClaim("id")
+                val claimString = claim.asInt()
+                val user = db.findUser(claimString)
+                user
+            }
+        }
     }
 
     install(ContentNegotiation) {
@@ -73,5 +96,6 @@ fun Application.module(testing: Boolean = false) {
 //    data class List(val type: Type, val page: Int)
 //}
 
-data class MySession(val count: Int = 0)
+//data class MySession(val count: Int = 0)
+const val API_VERSION = "/v1"
 
